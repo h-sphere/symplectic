@@ -38,10 +38,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build (if necessary)
-        run: pnpm build
+        run: pnpm install
 
       - name: Publish to npm
         run: pnpm publish --no-git-checks
