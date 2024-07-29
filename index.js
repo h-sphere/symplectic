@@ -6,7 +6,6 @@ const yargs = require('yargs');
 const ignore = require('ignore');
 
 const SEPARATOR = '//||'
-const STRUCTURE_PREFIX = '//=='
 
 const argv = yargs
   .option('verbose', {
@@ -22,7 +21,7 @@ const argv = yargs
   .option('remove', {
     alias: 'r',
     type: 'boolean',
-    description: 'Remove files and directories instead of creating them'
+    description: 'Remove files instead of creating them'
   })
   .option('generate', {
     alias: 'g',
@@ -44,79 +43,32 @@ function log(message) {
   }
 }
 
-function handleDirectoryStructure(structure, basePath = '.') {
-  const lines = structure.split('\n');
-  let currentPath = basePath;
-
-  lines.forEach(line => {
-    const trimmedLine = line.trim();
-    if (trimmedLine.startsWith(SEPARATOR) || trimmedLine.startsWith(STRUCTURE_PREFIX)) return; // Skip comments and structure prefix
-
-    const depth = line.search(/\S/);
-    const name = trimmedLine.trim();
-
-    if (name.endsWith('/')) {
-      // It's a directory
-      currentPath = path.join(basePath, ...currentPath.split(path.sep).slice(1, depth + 1), name);
-      if (!argv.dryRun) {
-        if (argv.remove) {
-          if (fs.existsSync(currentPath)) {
-            fs.rmdirSync(currentPath, { recursive: true });
-            log(`Removed directory: ${currentPath}`);
-          }
-        } else {
-          fs.mkdirSync(currentPath, { recursive: true });
-          log(`Created directory: ${currentPath}`);
-        }
-      }
-    }
-  });
-}
-
 function processInputFile(inputFilePath) {
   const content = fs.readFileSync(inputFilePath, 'utf8');
   const sections = content.split(`\n${SEPARATOR} `);
 
-  let projectStructure = '';
-  let isFirstFile = true;
-
-  sections.forEach((section, index) => {
-    if (index === 0 && section.trim().toLowerCase().startsWith('project structure')) {
-      projectStructure = section.split('\n').slice(1).join('\n');
-      isFirstFile = false;
-      log('Project structure processing to be done');
-    } else {
-      let [filename, ...fileContent] = section.split('\n');
-      if (filename.startsWith(SEPARATOR)) {
-        filename = filename.slice(SEPARATOR.length);
-      }
-      const trimmedFilename = filename.trim();
-      const filePath = path.join(process.cwd(), trimmedFilename);
-      
-      if (!argv.dryRun) {
-        if (argv.remove) {
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            log(`Removed file: ${filePath}`);
-          }
-        } else {
-          const directoryPath = path.dirname(filePath);
-          fs.mkdirSync(directoryPath, { recursive: true });
-          fs.writeFileSync(filePath, fileContent.join('\n'));
-          log(`Created file: ${filePath}`);
+  sections.forEach((section) => {
+    let [filename, ...fileContent] = section.split('\n');
+    if (filename.startsWith(SEPARATOR)) {
+      filename = filename.slice(SEPARATOR.length);
+    }
+    const trimmedFilename = filename.trim();
+    const filePath = path.join(process.cwd(), trimmedFilename);
+    
+    if (!argv.dryRun) {
+      if (argv.remove) {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          log(`Removed file: ${filePath}`);
         }
-      }
-
-      if (isFirstFile) {
-        isFirstFile = false;
-        log(`No project structure defined. Starting with file ${argv.remove ? 'removal' : 'creation'}.`);
+      } else {
+        const directoryPath = path.dirname(filePath);
+        fs.mkdirSync(directoryPath, { recursive: true });
+        fs.writeFileSync(filePath, fileContent.join('\n'));
+        log(`Created file: ${filePath}`);
       }
     }
   });
-
-  if (projectStructure) {
-    handleDirectoryStructure(projectStructure);
-  }
 }
 
 function getIgnoreRules(basePath) {
@@ -143,35 +95,6 @@ function getIgnoreRules(basePath) {
 function generateSymplecticFile(basePath = '.') {
   const ignoreRules = getIgnoreRules(basePath);
   const ig = ignore().add(ignoreRules);
-
-  function generateStructure(dir, depth = 0, prefix = '') {
-    let content = '';
-    const files = fs.readdirSync(dir).sort((a, b) => {
-      const aIsDir = fs.statSync(path.join(dir, a)).isDirectory();
-      const bIsDir = fs.statSync(path.join(dir, b)).isDirectory();
-      if (aIsDir && !bIsDir) return -1;
-      if (!aIsDir && bIsDir) return 1;
-      return a.localeCompare(b);
-    });
-
-    files.forEach(file => {
-      const filePath = path.join(dir, file);
-      const relativePath = path.relative(basePath, filePath);
-
-      if (ig.ignores(relativePath)) {
-        return;
-      }
-
-      const stats = fs.statSync(filePath);
-      content += ' '.repeat(depth * 2) + prefix + file + (stats.isDirectory() ? '/\n' : '\n');
-      
-      if (stats.isDirectory()) {
-        content += generateStructure(filePath, depth + 1, prefix + file + '/');
-      }
-    });
-
-    return content;
-  }
 
   function generateFileContents(dir, prefix = '') {
     let content = '';
@@ -205,17 +128,14 @@ function generateSymplecticFile(basePath = '.') {
     process.exit(1);
   }
 
-  const structure = `${STRUCTURE_PREFIX} Project Structure${subfolderName ? ` for ${subfolderName}` : ''}\n` + 
-                    generateStructure(subfolderPath, 0, subfolderName ? subfolderName + '/' : '');
   const fileContents = generateFileContents(subfolderPath, subfolderName ? subfolderName + '/' : '');
-  const fullContent = structure + '\n' + fileContents;
   
   if (!argv.dryRun) {
-    fs.writeFileSync(path.join(basePath, 'symplectic.txt'), fullContent);
+    fs.writeFileSync(path.join(basePath, 'symplectic.txt'), fileContents);
     console.log('Generated symplectic.txt file');
   } else {
     console.log('Dry run: symplectic.txt would be generated with the following content:');
-    console.log(fullContent);
+    console.log(fileContents);
   }
 }
 
@@ -229,11 +149,11 @@ function main() {
   
   try {
     log(`Processing input file: ${inputFile}`);
-    log(argv.dryRun ? 'Performing dry run...' : (argv.remove ? 'Removing project structure...' : 'Creating project structure...'));
+    log(argv.dryRun ? 'Performing dry run...' : (argv.remove ? 'Removing files...' : 'Creating files...'));
     
     processInputFile(inputFile);
     
-    console.log(`Project structure ${argv.dryRun ? 'would be' : 'was'} ${argv.remove ? 'removed' : 'generated'} successfully from ${inputFile}`);
+    console.log(`Files ${argv.dryRun ? 'would be' : 'were'} ${argv.remove ? 'removed' : 'created'} successfully from ${inputFile}`);
   } catch (error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);
