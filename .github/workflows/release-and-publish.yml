@@ -28,12 +28,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
       - uses: actions/setup-node@v3
         with:
           node-version: '16.x'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm ci
-      - run: npm publish
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (if necessary)
+        run: pnpm build
+
+      - name: Publish to npm
+        run: pnpm publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -59,6 +70,6 @@ jobs:
                 release_id: draftRelease.id,
                 draft: false,
                 name: `Release ${tagName}`,
-                body: 'This release has been automatically published to npm.'
+                body: 'This release has been automatically published to npm using pnpm.'
               });
             }
