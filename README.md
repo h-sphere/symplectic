@@ -1,6 +1,6 @@
 # Symplectic
 
-Symplectic is a Node.js utility for managing project structures through a single file. It allows you to generate a `symplectic.txt` file from an existing project structure, create project structures from a `symplectic.txt` file, and remove files based on the `symplectic.txt` specification.
+Symplectic is a Node.js utility for managing project structures through a single file. It allows you to generate a `symplectic.txt` file from an existing project structure, create project structures from a `symplectic.txt` file, and remove files based on the `symplectic.txt` specification. Additionally, it supports prepending and appending content to existing files.
 
 ## Use Cases
 
@@ -11,6 +11,8 @@ Symplectic is a Node.js utility for managing project structures through a single
 3. **Quick Project Setup**: Rapidly set up complex project structures with a single command.
 
 4. **Clean Up**: Easily remove generated project structures when they're no longer needed.
+
+5. **File Modification**: Prepend or append content to existing files without overwriting them.
 
 ## Important Disclaimer
 
@@ -84,6 +86,35 @@ symplectic --remove
 
 This will delete all files and directories specified in the `symplectic.txt` file.
 
+### Prepend or Append to Files
+
+To prepend or append content to existing files, use the following syntax in your `symplectic.txt` file:
+
+- For prepending: `//||^ filename`
+- For appending: `//||$ filename`
+
+Example:
+
+```
+//||^ existing_file.txt
+This content will be prepended to the file.
+
+//||$ another_existing_file.txt
+This content will be appended to the file.
+```
+
+Then run:
+
+```bash
+symplectic --dry-run
+```
+
+If the dry run output looks correct, run without `--dry-run` to apply the changes:
+
+```bash
+symplectic
+```
+
 ## Parameters
 
 Symplectic supports the following command-line parameters:
@@ -105,7 +136,7 @@ Symplectic supports the following command-line parameters:
    symplectic --generate --subfolder src --dry-run
    ```
 
-2. Perform a dry run to see what files would be created:
+2. Perform a dry run to see what files would be created or modified:
 
    ```bash
    symplectic --dry-run
@@ -115,6 +146,20 @@ Symplectic supports the following command-line parameters:
 
    ```bash
    symplectic --remove --verbose --dry-run
+   ```
+
+4. Prepend content to an existing file:
+
+   ```bash
+   echo "//||^ existing_file.txt\nPrepended content" > symplectic.txt
+   symplectic --dry-run
+   ```
+
+5. Append content to an existing file:
+
+   ```bash
+   echo "//||$ existing_file.txt\nAppended content" > symplectic.txt
+   symplectic --dry-run
    ```
 
 ## .symplecticignore
@@ -131,9 +176,15 @@ file content
 
 //|| another/file/path
 another file's content
+
+//||^ existing_file.txt
+content to prepend
+
+//||$ existing_file.txt
+content to append
 ```
 
-Each file is separated by a line starting with `//||` followed by the file path.
+Each file is separated by a line starting with `//||` followed by the file path. Use `//||^` for prepending and `//||$` for appending.
 
 ## Contributing
 
