@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    uses: ./.github/workflows/test-and-coverage.yml
+    uses: ./.github/workflows/test.yml
   create-release:
     needs: test
     runs-on: ubuntu-latest
