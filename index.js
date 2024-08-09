@@ -33,6 +33,11 @@ const argv = yargs
     type: 'string',
     description: 'Generate structure for a specific subfolder'
   })
+  .option('save-snapshot', {
+    alias: 'S',
+    type: 'boolean',
+    description: 'Apply changes and save a snapshot of the resulting system'
+  })
   .help()
   .alias('help', 'h')
   .argv;
@@ -65,7 +70,60 @@ function appendToFile(filePath, content) {
   log(`Appended to file: ${filePath}`);
 }
 
+function applyChangesAndSaveSnapshot(inputFilePath) {
+  const archiveDir = path.join(process.cwd(), '.symplecticarchive');
+  if (!fs.existsSync(archiveDir)) {
+    fs.mkdirSync(archiveDir);
+  }
+
+  const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '');
+  const snapshotPath = path.join(archiveDir, `${timestamp}.txt`);
+
+  const content = fs.readFileSync(inputFilePath, 'utf8');
+  const sections = content.split(`\n${SEPARATOR} `);
+
+  let snapshotContent = '';
+
+  sections.forEach((section) => {
+    let [header, ...fileContent] = section.split('\n');
+    if (header.startsWith(SEPARATOR)) {
+      header = header.slice(SEPARATOR.length);
+    }
+    const { modifier, filename } = detectModifier(header);
+    const filePath = path.join(process.cwd(), filename);
+    const content = fileContent.join('\n');
+
+    // Apply changes
+    const directoryPath = path.dirname(filePath);
+    fs.mkdirSync(directoryPath, { recursive: true });
+    
+    switch (modifier) {
+      case 'prepend':
+        prependToFile(filePath, content);
+        break;
+      case 'append':
+        appendToFile(filePath, content);
+        break;
+      default:
+        fs.writeFileSync(filePath, content);
+        log(`Created/Updated file: ${filePath}`);
+    }
+
+    // Read the final content for the snapshot
+    const finalContent = fs.readFileSync(filePath, 'utf8');
+    snapshotContent += `${SEPARATOR} ${filename}\n${finalContent}\n\n`;
+  });
+
+  fs.writeFileSync(snapshotPath, snapshotContent.trim());
+  log(`Changes applied and snapshot saved: ${snapshotPath}`);
+}
+
 function processInputFile(inputFilePath) {
+  if (argv.saveSnapshot) {
+    applyChangesAndSaveSnapshot(inputFilePath);
+    return;
+  }
+
   const content = fs.readFileSync(inputFilePath, 'utf8');
   const sections = content.split(`\n${SEPARATOR} `);
 
@@ -182,11 +240,19 @@ function main() {
   
   try {
     log(`Processing input file: ${inputFile}`);
-    log(argv.dryRun ? 'Performing dry run...' : (argv.remove ? 'Removing files...' : 'Creating/updating files...'));
+    if (argv.saveSnapshot) {
+      log('Applying changes and saving snapshot...');
+    } else {
+      log(argv.dryRun ? 'Performing dry run...' : (argv.remove ? 'Removing files...' : 'Creating/updating files...'));
+    }
     
     processInputFile(inputFile);
     
-    console.log(`Files ${argv.dryRun ? 'would be' : 'were'} ${argv.remove ? 'removed' : 'created/updated'} successfully from ${inputFile}`);
+    if (!argv.saveSnapshot) {
+      console.log(`Files ${argv.dryRun ? 'would be' : 'were'} ${argv.remove ? 'removed' : 'created/updated'} successfully from ${inputFile}`);
+    } else {
+      console.log('Changes applied and snapshot saved successfully');
+    }
   } catch (error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);
