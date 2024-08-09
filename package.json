@@ -1,6 +1,6 @@
 {
   "name": "symplectic",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -15,5 +15,8 @@
   "dependencies": {
     "ignore": "^5.3.1",
     "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
