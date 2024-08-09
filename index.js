@@ -43,17 +43,40 @@ function log(message) {
   }
 }
 
+function detectModifier(header) {
+  if (header.startsWith('^')) {
+    return { modifier: 'prepend', filename: header.slice(1).trim() };
+  } else if (header.startsWith('$')) {
+    return { modifier: 'append', filename: header.slice(1).trim() };
+  } else {
+    return { modifier: 'none', filename: header.trim() };
+  }
+}
+
+function prependToFile(filePath, content) {
+  const existingContent = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+  fs.writeFileSync(filePath, content + existingContent);
+  log(`Prepended to file: ${filePath}`);
+}
+
+function appendToFile(filePath, content) {
+  const existingContent = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+  fs.writeFileSync(filePath, existingContent + content);
+  log(`Appended to file: ${filePath}`);
+}
+
 function processInputFile(inputFilePath) {
   const content = fs.readFileSync(inputFilePath, 'utf8');
   const sections = content.split(`\n${SEPARATOR} `);
 
   sections.forEach((section) => {
-    let [filename, ...fileContent] = section.split('\n');
-    if (filename.startsWith(SEPARATOR)) {
-      filename = filename.slice(SEPARATOR.length);
+    let [header, ...fileContent] = section.split('\n');
+    if (header.startsWith(SEPARATOR)) {
+      header = header.slice(SEPARATOR.length);
     }
-    const trimmedFilename = filename.trim();
-    const filePath = path.join(process.cwd(), trimmedFilename);
+    const { modifier, filename } = detectModifier(header);
+    const filePath = path.join(process.cwd(), filename);
+    const content = fileContent.join('\n');
     
     if (!argv.dryRun) {
       if (argv.remove) {
@@ -64,8 +87,18 @@ function processInputFile(inputFilePath) {
       } else {
         const directoryPath = path.dirname(filePath);
         fs.mkdirSync(directoryPath, { recursive: true });
-        fs.writeFileSync(filePath, fileContent.join('\n'));
-        log(`Created file: ${filePath}`);
+        
+        switch (modifier) {
+          case 'prepend':
+            prependToFile(filePath, content);
+            break;
+          case 'append':
+            appendToFile(filePath, content);
+            break;
+          default:
+            fs.writeFileSync(filePath, content);
+            log(`Created file: ${filePath}`);
+        }
       }
     }
   });
@@ -149,11 +182,11 @@ function main() {
   
   try {
     log(`Processing input file: ${inputFile}`);
-    log(argv.dryRun ? 'Performing dry run...' : (argv.remove ? 'Removing files...' : 'Creating files...'));
+    log(argv.dryRun ? 'Performing dry run...' : (argv.remove ? 'Removing files...' : 'Creating/updating files...'));
     
     processInputFile(inputFile);
     
-    console.log(`Files ${argv.dryRun ? 'would be' : 'were'} ${argv.remove ? 'removed' : 'created'} successfully from ${inputFile}`);
+    console.log(`Files ${argv.dryRun ? 'would be' : 'were'} ${argv.remove ? 'removed' : 'created/updated'} successfully from ${inputFile}`);
   } catch (error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);
