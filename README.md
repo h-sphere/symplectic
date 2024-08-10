@@ -1,6 +1,6 @@
 # Symplectic
 
-Symplectic is a Node.js utility for managing project structures through a single file. It allows you to generate a `symplectic.txt` file from an existing project structure, create project structures from a `symplectic.txt` file, and remove files based on the `symplectic.txt` specification. Additionally, it supports prepending and appending content to existing files.
+Symplectic is a Node.js utility for managing project structures through a single file. It allows you to generate a `symplectic.txt` file from an existing project structure, create project structures from a `symplectic.txt` file, remove files based on the `symplectic.txt` specification, and now includes a snapshot feature for easy reverting of changes.
 
 ## Use Cases
 
@@ -13,6 +13,8 @@ Symplectic is a Node.js utility for managing project structures through a single
 4. **Clean Up**: Easily remove generated project structures when they're no longer needed.
 
 5. **File Modification**: Prepend or append content to existing files without overwriting them.
+
+6. **Version Control**: Create snapshots of your project structure for easy reverting of changes.
 
 ## Important Disclaimer
 
@@ -115,6 +117,21 @@ If the dry run output looks correct, run without `--dry-run` to apply the change
 symplectic
 ```
 
+### Create a Snapshot
+
+To apply changes and create a snapshot of the resulting system state:
+
+```bash
+symplectic --save-snapshot
+```
+
+This command will:
+1. Apply all changes specified in the `symplectic.txt` file.
+2. Create a snapshot of the resulting system state after the changes have been applied.
+3. Save the snapshot in the `.symplecticarchive` directory with a timestamp in the filename.
+
+The snapshot file will be in the Symplectic format, allowing you to revert to this state later if needed.
+
 ## Parameters
 
 Symplectic supports the following command-line parameters:
@@ -126,6 +143,7 @@ Symplectic supports the following command-line parameters:
 | `--remove` | `-r` | Remove files instead of creating them |
 | `--generate` | `-g` | Generate symplectic.txt file from existing structure |
 | `--subfolder <path>` | `-s <path>` | Generate structure for a specific subfolder |
+| `--save-snapshot` | `-S` | Apply changes and save a snapshot of the resulting system |
 | `--help` | `-h` | Show help information |
 
 ## Examples
@@ -160,6 +178,12 @@ Symplectic supports the following command-line parameters:
    ```bash
    echo "//||$ existing_file.txt\nAppended content" > symplectic.txt
    symplectic --dry-run
+   ```
+
+6. Apply changes and create a snapshot:
+
+   ```bash
+   symplectic --save-snapshot
    ```
 
 ## .symplecticignore
